@@ -11,7 +11,7 @@ public class ReportDcPlugin : BasePlugin
 {
     public override string ModuleName => "ReportDcPlugin";
 
-    public override string ModuleVersion => "0.0.1";
+    public override string ModuleVersion => "0.0.2";
     public override string ModuleAuthor => "Constummer";
     public override string ModuleDescription => "ReportDcPlugin";
 
@@ -26,7 +26,7 @@ public class ReportDcPlugin : BasePlugin
     {
         public string Prefix { get; set; }
         public string PlayerResponseNotEnoughInput { get; set; }
-        public Dictionary<string, string> Commands { get; set; }
+        public List<CommandSettings> Commands { get; set; }
         public string PlayerResponseSuccessfull { get; set; }
         public string ServerName { get; internal set; }
     }
@@ -46,13 +46,17 @@ public class ReportDcPlugin : BasePlugin
             var data = new Config()
             {
                 Prefix = "Prefix",
-                PlayerResponseNotEnoughInput = "Daha fazla bilgi vermelisiniz",
-                PlayerResponseSuccessfull = "Report başarıyla iletildi",
-                Commands = new Dictionary<string, string>()
+                PlayerResponseNotEnoughInput = "Not enough input",
+                PlayerResponseSuccessfull = "Reported successfully",
+                Commands = new List<CommandSettings>()
                 {
-                    {"report","https://discord.com/api/webhooks/****************/*************************" },
-                    {"report2","https://discord.com/api/webhooks/****************/*************************" },
-                    {"reports","https://discord.com/api/webhooks/****************/*************************" }
+                    new CommandSettings
+                    {
+                        CommandString = "report",
+                        Endpoint = "discord.....",
+                        MessageTemplate = "{HostName} | {Player.Name} | {Player.SteamID} = {Args}",
+                        Description = "Something or other"
+                    },
                 },
                 ServerName = "Server1"
             };
@@ -70,7 +74,7 @@ public class ReportDcPlugin : BasePlugin
         {
             foreach (var command in _config.Commands)
             {
-                AddCommand(command.Key, command.Key, (player, info) =>
+                AddCommand(command.CommandString, command.Description, (player, info) =>
                 {
                     if (ValidateCallerPlayer(player) == false)
                     {
@@ -83,12 +87,20 @@ public class ReportDcPlugin : BasePlugin
                     };
                     
                     var hostName = ConVar.Find("hostname")?.StringValue ?? _config.ServerName ?? "N/A";
-                    
-                    var msg = $"{hostName} | {player?.PlayerName ?? "UNKNOWN"} | {player?.SteamID ?? 0} = {info.ArgString}";
+                    Dictionary<string, string> messageContext = new Dictionary<string, string>()
+                    {
+                        {"HostName", hostName},
+                        {"Player.Name", player?.PlayerName ?? "N/A"},
+                        // JSX looking ass
+                        {"Player.SteamID", $"{(player?.SteamID is null ? "N/A" : 0)}"},
+                        {"Args", info.ArgString}
+                    };
+
+                    var msg = MessageInterpolation.InterpolateString(command.MessageTemplate, messageContext);
                     
                     Server.NextFrame(async () =>
                     {
-                        await PostAsync(command.Value, msg);
+                        await PostAsync(command.Endpoint, msg);
                     });
                     
                     player?.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseSuccessfull, _config.Prefix));
