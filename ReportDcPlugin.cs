@@ -3,6 +3,7 @@ using CounterStrikeSharp.API.Core;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using CounterStrikeSharp.API.Modules.Cvars;
 
 namespace ReportDcPlugin;
 
@@ -80,19 +81,17 @@ public class ReportDcPlugin : BasePlugin
                     {
                         player!.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseNotEnoughInput, _config.Prefix));
                     };
-
-                    var msg = $"{player.PlayerName} | {player.SteamID} = {info.ArgString}";
-
-                    if (string.IsNullOrWhiteSpace(_config.ServerName) == false)
-                    {
-                        msg = $"{_config.ServerName} | {msg}";
-                    }
-
+                    
+                    var hostName = ConVar.Find("hostname")?.StringValue ?? _config.ServerName ?? "N/A";
+                    
+                    var msg = $"{hostName} | {player?.PlayerName ?? "UNKNOWN"} | {player?.SteamID ?? 0} = {info.ArgString}";
+                    
                     Server.NextFrame(async () =>
                     {
                         await PostAsync(command.Value, msg);
                     });
-                    player.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseSuccessfull, _config.Prefix));
+                    
+                    player?.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseSuccessfull, _config.Prefix));
                 });
             }
         }
@@ -108,16 +107,10 @@ public class ReportDcPlugin : BasePlugin
 
     private static bool ValidateCallerPlayer(CCSPlayerController? player)
     {
-        if (player == null) return false;
-        if (player.IsBot) return false;
-        if (player == null
-            || !player.IsValid
-            || player.PlayerPawn == null
-            || !player.PlayerPawn.IsValid
-            || player.PlayerPawn.Value == null
-            || !player.PlayerPawn.Value.IsValid
-            ) return false;
-        return true;
+        return player != null
+               && player is { IsValid: true, IsBot: false, PlayerPawn.IsValid: true }
+               && player.PlayerPawn.Value != null
+               && player.PlayerPawn.Value.IsValid;
     }
 
     private async Task PostAsync(string uri, string message)
@@ -127,7 +120,6 @@ public class ReportDcPlugin : BasePlugin
             var body = JsonSerializer.Serialize(new { content = message });
             var content = new StringContent(body, Encoding.UTF8, "application/json");
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
             HttpResponseMessage res = (await _httpClient.PostAsync($"{uri}", content)).EnsureSuccessStatusCode();
         }
         catch
