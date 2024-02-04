@@ -92,7 +92,7 @@ public class ReportDcPlugin : BasePlugin
                         {"HostName", hostName},
                         {"Player.Name", player?.PlayerName ?? "N/A"},
                         // JSX looking ass
-                        {"Player.SteamID", $"{(player?.SteamID is null ? "N/A" : 0)}"},
+                        {"Player.SteamID", $"{(player?.SteamID is null ? "N/A" : player.SteamID)}"},
                         {"Args", info.ArgString}
                     };
 
