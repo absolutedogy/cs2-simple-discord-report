@@ -14,7 +14,7 @@ public class MessageInterpolation
             if (template[i] == '{')
             {
                 // Handle escape sequence in case the template contains a { in the final message
-                if (template[i + 1] == '{')
+                if (i + 1 < template.Length && template[i + 1] == '{')
                 {
                     i++;
                     result += "{";
