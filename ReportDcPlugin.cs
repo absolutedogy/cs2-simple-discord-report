@@ -3,6 +3,7 @@ using CounterStrikeSharp.API.Core;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using CounterStrikeSharp.API.Modules.Cvars;
 
 namespace ReportDcPlugin;
 
@@ -10,7 +11,7 @@ public class ReportDcPlugin : BasePlugin
 {
     public override string ModuleName => "ReportDcPlugin";
 
-    public override string ModuleVersion => "0.0.1";
+    public override string ModuleVersion => "0.0.2";
     public override string ModuleAuthor => "Constummer";
     public override string ModuleDescription => "ReportDcPlugin";
 
@@ -25,7 +26,7 @@ public class ReportDcPlugin : BasePlugin
     {
         public string Prefix { get; set; }
         public string PlayerResponseNotEnoughInput { get; set; }
-        public Dictionary<string, string> Commands { get; set; }
+        public List<CommandSettings> Commands { get; set; }
         public string PlayerResponseSuccessfull { get; set; }
         public string ServerName { get; internal set; }
     }
@@ -45,13 +46,17 @@ public class ReportDcPlugin : BasePlugin
             var data = new Config()
             {
                 Prefix = "Prefix",
-                PlayerResponseNotEnoughInput = "Daha fazla bilgi vermelisiniz",
-                PlayerResponseSuccessfull = "Report başarıyla iletildi",
-                Commands = new Dictionary<string, string>()
+                PlayerResponseNotEnoughInput = "Not enough input",
+                PlayerResponseSuccessfull = "Reported successfully",
+                Commands = new List<CommandSettings>()
                 {
-                    {"report","https://discord.com/api/webhooks/****************/*************************" },
-                    {"report2","https://discord.com/api/webhooks/****************/*************************" },
-                    {"reports","https://discord.com/api/webhooks/****************/*************************" }
+                    new CommandSettings
+                    {
+                        CommandString = "report",
+                        Endpoint = "discord.....",
+                        MessageTemplate = "{HostName} | {Player.Name} | {Player.SteamID} = {Args}",
+                        Description = "Something or other"
+                    },
                 },
                 ServerName = "Server1"
             };
@@ -69,7 +74,7 @@ public class ReportDcPlugin : BasePlugin
         {
             foreach (var command in _config.Commands)
             {
-                AddCommand(command.Key, command.Key, (player, info) =>
+                AddCommand(command.CommandString, command.Description, (player, info) =>
                 {
                     if (ValidateCallerPlayer(player) == false)
                     {
@@ -81,19 +86,25 @@ public class ReportDcPlugin : BasePlugin
                         player!.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseNotEnoughInput, _config.Prefix));
                         return;
                     };
-
-                    var msg = $"{player.PlayerName} | {player.SteamID} = {info.ArgString}";
-
-                    if (string.IsNullOrWhiteSpace(_config.ServerName) == false)
+                    
+                    var hostName = ConVar.Find("hostname")?.StringValue ?? _config.ServerName ?? "N/A";
+                    Dictionary<string, string> messageContext = new Dictionary<string, string>()
                     {
-                        msg = $"{_config.ServerName} | {msg}";
-                    }
+                        {"HostName", hostName},
+                        {"Player.Name", player?.PlayerName ?? "N/A"},
+                        // JSX looking ass
+                        {"Player.SteamID", $"{(player?.SteamID is null ? "N/A" : player.SteamID)}"},
+                        {"Args", info.ArgString}
+                    };
 
+                    var msg = MessageInterpolation.InterpolateString(command.MessageTemplate, messageContext);
+                    
                     Server.NextFrame(async () =>
                     {
-                        await PostAsync(command.Value, msg);
+                        await PostAsync(command.Endpoint, msg);
                     });
-                    player.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseSuccessfull, _config.Prefix));
+                    
+                    player?.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseSuccessfull, _config.Prefix));
                 });
             }
         }
@@ -109,16 +120,10 @@ public class ReportDcPlugin : BasePlugin
 
     private static bool ValidateCallerPlayer(CCSPlayerController? player)
     {
-        if (player == null) return false;
-        if (player.IsBot) return false;
-        if (player == null
-            || !player.IsValid
-            || player.PlayerPawn == null
-            || !player.PlayerPawn.IsValid
-            || player.PlayerPawn.Value == null
-            || !player.PlayerPawn.Value.IsValid
-            ) return false;
-        return true;
+        return player != null
+               && player is { IsValid: true, IsBot: false, PlayerPawn.IsValid: true }
+               && player.PlayerPawn.Value != null
+               && player.PlayerPawn.Value.IsValid;
     }
 
     private async Task PostAsync(string uri, string message)
@@ -128,7 +133,6 @@ public class ReportDcPlugin : BasePlugin
             var body = JsonSerializer.Serialize(new { content = message });
             var content = new StringContent(body, Encoding.UTF8, "application/json");
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
             HttpResponseMessage res = (await _httpClient.PostAsync($"{uri}", content)).EnsureSuccessStatusCode();
         }
         catch

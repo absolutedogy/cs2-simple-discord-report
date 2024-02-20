@@ -1,39 +1,80 @@
-Simple Discord Report Plugin
+# ReportDcPlugin: A Discord Report Plugin for Counter-Strike
 
-Simply it will send message to discord web hook whatever the player types
+This plugin allows you to report issues directly to a Discord webhook. It's as simple as typing a command ingame.
 
-- Example Usage
-```!report something happened, send admin please```
+## Usage
 
-- Example Discord Output
-``` Server1 | Player1 | 7777777777(steamid) =  something happened, send admin please```
+For example, a player could type:
 
+`!report Incident at location A, send admin immediately`
 
-Add as many as commands as you like into ```Commands``` section of the json as given example. 
+## Discord Output
 
+The output in Discord would look like this:
 
+`(Server Name) | (Player's Name) | (Player's SteamID) = (Report details)`
 
-```json
+For example,
+
+`Server1 | Player1 | 7777777777 = Incident at location A, send admin immediately`
+
+## Configuration
+
+You can add as many commands as you like into the `Commands` section of the JSON configuration file.
+
+Here is an example configuration:
+
+```json 
 {
-  "Prefix": "Prefix", //prefix to player response
-  "PlayerResponseNotEnoughInput": "Daha fazla bilgi vermelisiniz", //when player input is not enough like when player only types !report
-  "Commands": { //add as many you like like this
-    "report": "https://discord.com/api/webhooks/****************/*************************",
-    "report2": "https://discord.com/api/webhooks/****************/*************************",
-    "reports": "https://discord.com/api/webhooks/****************/*************************"
-  },
-  "PlayerResponseSuccessfull": "Report başarıyla iletildi", //This will be shown to player
-  "ServerName": "Server1" //This will be shown in discord, if you dont want to see just remove it like "ServerName": "" or completly remove the property
+    "Prefix": "Prefix",
+    "PlayerResponseNotEnoughInput": "Please provide more details for the report",
+    "Commands": [
+        {
+            "CommandString": "report",
+            "Endpoint": "https://discord.com/api/webhooks/****************/*************************",
+            "MessageTemplate": "{HostName} | {Player.Name} | {Player.SteamID} = {Args}",
+            "Description": "Report an issue"
+        }
+    ],
+    "PlayerResponseSuccessfull": "Your report has been successfully sent",
+    "ServerName": "Server1"
 }
 ```
 
-How to get Discord Webhook
 
-* 1 - Open the Discord channel you want to receive notifications.
-* 2 - From the channel menu, select Edit channel.
-* 3 - Select Integrations.
-* 4 - If there are no existing webhooks, select Create Webhook. Otherwise, select View Webhooks then New Webhook.
-* 5 - Enter the name of the bot to post the message.
-* 6 - Optional. Edit the avatar.
-* 7 - Copy the URL from the WEBHOOK URL field.
-* 8 - Select Save.
+`PlayerResponseNotEnoughInput` is sent to the player if they enter an invalid report, like typing only '!report'. `PlayerResponseSuccessfull` is the message shown to the player upon a successful report.
+
+## Getting a Discord Webhook
+To get a Discord webhook, follow these steps:
+
+1. Open the Discord channel where you want to receive notifications.
+2. From the channel menu, select Edit Channel.
+3. Select Integrations.
+4. If there are no existing webhooks, select Create Webhook. If webhooks exist, select View Webhooks, then New Webhook.
+5. Enter the name for the bot that will post the messages.
+6. Optionally, you can edit the avatar.
+7. Copy the URL from the WEBHOOK URL field.
+8. Save your changes.
+
+After obtaining the webhook URL, replace the `Endpoint` field for each command in the `Commands` section with the URL.
+
+# Using Placeholders in MessageTemplate
+
+The `MessageTemplate` field uses placeholders that will be replaced by corresponding values when a report is sent.
+
+The placeholders you can use are:
+
+- `{Player.Name}`: Replaced by the player's name.
+- `{Player.SteamID}`: Replaced by the player's Steam ID.
+- `{Args}`: Replaced by the details of the report.
+- `{HostName}`: Replaced by your server's name.
+
+Here's an example `MessageTemplate`:
+
+`"{HostName} | {Player.Name} | {Player.SteamID} = {Args}"`
+
+Now, let's say a player named "JohnDoe" sends a report on your server "Server1". His SteamID is 7777777777 and the report is about a "Hostage situation at bombsite B".
+
+In Discord, you will then see:
+
+`plaintext Server1 | JohnDoe | 7777777777 = Hostage situation at bombsite B`
