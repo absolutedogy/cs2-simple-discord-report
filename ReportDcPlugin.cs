@@ -84,6 +84,7 @@ public class ReportDcPlugin : BasePlugin
                     if (info.ArgCount <= 1)
                     {
                         player!.PrintToChat(AddPrefixToTheMessage(_config.PlayerResponseNotEnoughInput, _config.Prefix));
+                        return;
                     };
                     
                     var hostName = ConVar.Find("hostname")?.StringValue ?? _config.ServerName ?? "N/A";
